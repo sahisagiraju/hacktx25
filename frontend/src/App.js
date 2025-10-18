@@ -6,7 +6,7 @@ import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 // Import components (we'll create these next)
-import CelestialMap from './components/CelestialMap';
+// import CelestialMap from './components/CelestialMap';
 import ThreatRibbon from './components/ThreatRibbon';
 import StrategyChat from './components/StrategyChat';
 import TelemetryPanel from './components/TelemetryPanel';
@@ -58,15 +58,6 @@ function App() {
         }}
       />
 
-      {/* 3D Celestial Background */}
-      <div className="celestial-background">
-        <Canvas camera={{ position: [0, 0, 10], fov: 75 }}>
-          <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} />
-          <OrbitControls enablePan={false} enableZoom={true} enableRotate={true} />
-        </Canvas>
-      </div>
 
       {/* Main UI Overlay */}
       <div className="ui-overlay">
@@ -114,15 +105,7 @@ function App() {
 
         {/* Main Dashboard */}
         <div className="dashboard-grid">
-          {/* Left Panel - Celestial Map */}
-          <motion.div
-            className="celestial-panel"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <CelestialMap alerts={alerts} />
-          </motion.div>
+          
 
           {/* Center Panel - Threat Analysis */}
           <motion.div
