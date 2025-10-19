@@ -1,0 +1,19 @@
+{
+  "name": "f1-race-engineer-ai",
+  "version": "1.0.0",
+  "description": "Real-Time F1 Race Engineer AI with Radio Codeword Decoding",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "frontend": "cd frontend && npm run dev",
+    "simulator": "cd backend && python sim/generate_stream.py --laps 6 --drivers 2 --to csv",
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt"
+  },
+  "keywords": ["f1", "ai", "race-engineering", "telemetry", "anomaly-detection"],
+  "author": "Sahishnu Sagiraju",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

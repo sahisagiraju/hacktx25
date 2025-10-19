@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: f1-frontend
+  namespace: f1-race-engineer
+  labels:
+    app: f1-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: f1-frontend
+  template:
+    metadata:
+      labels:
+        app: f1-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: f1-race-engineer/frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: REACT_APP_WS_URL
+          value: "ws://f1-gateway-service:8000/ws"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5

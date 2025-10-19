@@ -1,172 +1,198 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, TrendingUp, Clock, Zap } from 'lucide-react';
+import { useWebSocket } from '../context/WebSocketContext';
+import { AlertTriangle, Shield, Zap, Clock } from 'lucide-react';
 
-function ThreatAlert({ alert, onDismiss }) {
-  const [timeLeft, setTimeLeft] = useState(alert.ttl_ms / 1000);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          onDismiss(alert.id);
-          return 0;
-        }
-        return prev - 0.1;
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [alert.id, onDismiss]);
-
-  const riskColor = alert.risk_attack_now > 0.7 ? '#ff4444' :
-                   alert.risk_attack_now > 0.4 ? '#ffaa00' : '#44ff44';
-
-  return (
-    <motion.div
-      className="threat-alert"
-      initial={{ opacity: 0, scale: 0.8, y: -50 }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-        y: 0,
-        boxShadow: `0 0 ${20 + timeLeft * 5}px ${riskColor}40`
-      }}
-      exit={{ opacity: 0, scale: 0.8, y: -50 }}
-      transition={{ duration: 0.3 }}
-      style={{
-        borderLeft: `4px solid ${riskColor}`,
-        animation: `supernova-pulse 2s ease-in-out infinite`
-      }}
-    >
-      <div className="alert-header">
-        <div className="alert-title">
-          <AlertTriangle size={20} color={riskColor} />
-          <span>THREAT ALERT</span>
-        </div>
-        <div className="alert-timer">
-          <Clock size={16} />
-          <span>{timeLeft.toFixed(1)}s</span>
-        </div>
-      </div>
-
-      <div className="alert-content">
-        <div className="alert-main">
-          <span className="rival-id">{alert.rival_id}</span>
-          <span className="turn-number">T{alert.turn}</span>
-        </div>
-
-        <div className="alert-recommendation">
-          {alert.recommendation}
-        </div>
-
-        <div className="alert-risk">
-          <TrendingUp size={16} />
-          <span>{Math.round(alert.risk_attack_now * 100)}% Attack Risk</span>
-        </div>
-      </div>
-
-      <div className="alert-reasons">
-        {alert.why.map((reason, index) => (
-          <motion.div
-            key={index}
-            className="reason-chip"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            {reason}
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-function ThreatRibbon({ alerts }) {
-  const [displayAlerts, setDisplayAlerts] = useState([]);
+const ThreatRibbon = () => {
+  const { anomalies, telemetryData } = useWebSocket();
+  const [threats, setThreats] = useState([]);
+  const [threatLevel, setThreatLevel] = useState('low');
 
   useEffect(() => {
-    // Add new alerts
-    alerts.forEach(alert => {
-      if (!displayAlerts.find(a => a.id === alert.id)) {
-        setDisplayAlerts(prev => [...prev, { ...alert, id: Date.now() + Math.random() }]);
-      }
+    // Process anomalies into threat format
+    const newThreats = Object.values(anomalies)
+      .filter(anomaly => anomaly.is_anomaly)
+      .map(anomaly => ({
+        id: `threat-${anomaly.driver_id}-${anomaly.timestamp}`,
+        driverId: anomaly.driver_id,
+        severity: anomaly.confidence > 0.8 ? 'high' : anomaly.confidence > 0.6 ? 'medium' : 'low',
+        type: anomaly.top_anomaly?.feature || 'unknown',
+        value: anomaly.top_anomaly?.value || 0,
+        score: anomaly.top_anomaly?.score || 0,
+        timestamp: anomaly.timestamp,
+        description: `Anomaly in ${anomaly.top_anomaly?.feature}: ${anomaly.top_anomaly?.value}`
+      }));
+
+    setThreats(prev => {
+      const existingIds = new Set(prev.map(t => t.id));
+      const newUniqueThreats = newThreats.filter(t => !existingIds.has(t.id));
+      return [...newUniqueThreats, ...prev].slice(0, 10); // Keep last 10 threats
     });
+  }, [anomalies]);
 
-    // Remove expired alerts
-    setDisplayAlerts(prev => prev.filter(alert =>
-      !alerts.some(a => a.id === alert.id && a.expired)
-    ));
-  }, [alerts, displayAlerts]);
+  useEffect(() => {
+    // Calculate overall threat level
+    const highThreats = threats.filter(t => t.severity === 'high').length;
+    const mediumThreats = threats.filter(t => t.severity === 'medium').length;
+    
+    if (highThreats > 0) {
+      setThreatLevel('high');
+    } else if (mediumThreats > 2) {
+      setThreatLevel('medium');
+    } else {
+      setThreatLevel('low');
+    }
+  }, [threats]);
 
-  const dismissAlert = (alertId) => {
-    setDisplayAlerts(prev => prev.filter(alert => alert.id !== alertId));
+  const getThreatColor = (severity) => {
+    switch (severity) {
+      case 'high': return 'text-f1-red';
+      case 'medium': return 'text-f1-yellow';
+      case 'low': return 'text-f1-green';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getThreatBg = (severity) => {
+    switch (severity) {
+      case 'high': return 'bg-f1-red/10 border-f1-red/30';
+      case 'medium': return 'bg-f1-yellow/10 border-f1-yellow/30';
+      case 'low': return 'bg-f1-green/10 border-f1-green/30';
+      default: return 'bg-gray-700/10 border-gray-700/30';
+    }
+  };
+
+  const getThreatIcon = (severity) => {
+    switch (severity) {
+      case 'high': return <AlertTriangle className="w-4 h-4 text-f1-red" />;
+      case 'medium': return <Shield className="w-4 h-4 text-f1-yellow" />;
+      case 'low': return <Zap className="w-4 h-4 text-f1-green" />;
+      default: return <AlertTriangle className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getThreatLevelColor = () => {
+    switch (threatLevel) {
+      case 'high': return 'text-f1-red';
+      case 'medium': return 'text-f1-yellow';
+      case 'low': return 'text-f1-green';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getThreatLevelBg = () => {
+    switch (threatLevel) {
+      case 'high': return 'bg-f1-red/10 border-f1-red/30';
+      case 'medium': return 'bg-f1-yellow/10 border-f1-yellow/30';
+      case 'low': return 'bg-f1-green/10 border-f1-green/30';
+      default: return 'bg-gray-700/10 border-gray-700/30';
+    }
   };
 
   return (
-    <div className="threat-ribbon-container">
-      <div className="panel-header">
-        <h3>Threat Analysis</h3>
-        <div className="threat-stats">
-          <div className="stat-item">
-            <Zap size={16} />
-            <span>{displayAlerts.length} Active</span>
-          </div>
-          <div className="stat-item">
-            <TrendingUp size={16} />
-            <span>{Math.round(displayAlerts.reduce((acc, a) => acc + a.risk_attack_now, 0) / Math.max(displayAlerts.length, 1) * 100)}% Avg Risk</span>
-          </div>
+    <div className="galaxy-card p-4 w-80">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-white flex items-center">
+          <Shield className="w-5 h-5 mr-2" />
+          Threat Assessment
+        </h3>
+        <div className={`px-2 py-1 rounded text-xs font-medium ${getThreatLevelBg()} ${getThreatLevelColor()}`}>
+          {threatLevel.toUpperCase()}
         </div>
       </div>
 
-      <div className="threat-ribbon">
-        <AnimatePresence>
-          {displayAlerts.map(alert => (
-            <ThreatAlert
-              key={alert.id}
-              alert={alert}
-              onDismiss={dismissAlert}
-            />
-          ))}
-        </AnimatePresence>
+      {/* Threat Level Indicator */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-400">Overall Threat Level</span>
+          <span className={`text-sm font-medium ${getThreatLevelColor()}`}>
+            {threatLevel.toUpperCase()}
+          </span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full transition-all duration-300 ${
+              threatLevel === 'high' ? 'bg-f1-red' :
+              threatLevel === 'medium' ? 'bg-f1-yellow' : 'bg-f1-green'
+            }`}
+            style={{
+              width: threatLevel === 'high' ? '100%' : threatLevel === 'medium' ? '60%' : '20%'
+            }}
+          ></div>
+        </div>
+      </div>
 
-        {displayAlerts.length === 0 && (
-          <motion.div
-            className="no-threats"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="no-threats-icon">🌌</div>
-            <p>All clear. Monitoring rivals...</p>
-          </motion.div>
+      {/* Active Threats */}
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {threats.length === 0 ? (
+          <div className="text-center text-gray-400 py-4">
+            <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No active threats</p>
+            <p className="text-xs">All systems normal</p>
+          </div>
+        ) : (
+          threats.map((threat) => (
+            <div
+              key={threat.id}
+              className={`p-3 rounded-lg border ${getThreatBg(threat.severity)}`}
+            >
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  {getThreatIcon(threat.severity)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-white">
+                      {threat.driverId}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(threat.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300 mb-1">{threat.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">
+                      Score: {threat.score.toFixed(1)}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      threat.severity === 'high' ? 'bg-f1-red/20 text-f1-red' :
+                      threat.severity === 'medium' ? 'bg-f1-yellow/20 text-f1-yellow' :
+                      'bg-f1-green/20 text-f1-green'
+                    }`}>
+                      {threat.severity.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      <div className="threat-history">
-        <h4>Recent Threats</h4>
-        <div className="history-list">
-          {alerts.slice(-5).reverse().map((alert, index) => (
-            <motion.div
-              key={`${alert.ts}-${index}`}
-              className="history-item"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <span className="history-time">
-                {new Date(alert.ts).toLocaleTimeString()}
-              </span>
-              <span className="history-rival">{alert.rival_id}</span>
-              <span className="history-turn">T{alert.turn}</span>
-              <span className="history-risk">{Math.round(alert.risk_attack_now * 100)}%</span>
-            </motion.div>
-          ))}
+      {/* Threat Statistics */}
+      <div className="mt-4 pt-4 border-t border-galaxy-glow/30">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-lg font-bold text-f1-red">
+              {threats.filter(t => t.severity === 'high').length}
+            </div>
+            <div className="text-xs text-gray-400">High</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-f1-yellow">
+              {threats.filter(t => t.severity === 'medium').length}
+            </div>
+            <div className="text-xs text-gray-400">Medium</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-f1-green">
+              {threats.filter(t => t.severity === 'low').length}
+            </div>
+            <div className="text-xs text-gray-400">Low</div>
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default ThreatRibbon;

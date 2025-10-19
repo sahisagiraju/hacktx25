@@ -1,225 +1,333 @@
-# AstraGuard — NorthMark Edition (with AgentBricks)
-**Tagline:** *Read the stars. Guard the apex.*  
-**Tracks (kept):** **Best NorthMark Hack**, **Best Design**, **Best Celestial-Themed**, **Best Use of ElevenLabs**, **Best Use of Gemini API**, **Best .Tech Domain**
+# 🏎️ F1 Race Engineer AI
+### Real-Time Radio Codeword Decoding & Driver Anomaly Detection
 
-This version **explicitly includes AgentBricks** as the orchestration layer for per-rival agents and system skills.
-
----
-
-## 🎯 What AstraGuard Does
-AstraGuard is a **real-time race strategy copilot**. It runs **per-competitor agents** that learn habits and predict intentions, evaluates **micro-scenarios** (HPC‑lite), **fuses** signals, and **communicates** short, actionable calls via **ElevenLabs** — all while storing context for **Gemini‑powered RAG** strategy validation.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![React 18](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
 
 ---
 
-## 🧱 System Architecture (AgentBricks Orchestrated)
+## 🚀 Overview
 
-### High-Level (runtime blocks)
+**F1 Race Engineer AI** is a real-time analytics platform designed to support Formula 1 race engineers.
+It creates an **AI agent per driver** that learns each driver's "normal" driving behavior after a few laps, detects anomalies, and correlates them with **team radio commands** transcribed via **ElevenLabs Speech-to-Text**.
+
+Goal: **Decrypt team codewords** — e.g., identifying that "full speed ahead" consistently triggers a speed increase.
+
+---
+
+## ✨ Features
+
+- 🧠 **AI-Powered Anomaly Detection**: Machine learning algorithms detect unusual driving patterns
+- 🎙️ **Real-Time Radio Transcription**: ElevenLabs Speech-to-Text for team communications
+- 📊 **Live Telemetry Visualization**: Real-time F1 data with galaxy-themed UI
+- 🔍 **Codeword Analysis**: Correlate radio phrases with driving behavior changes
+- 📈 **Performance Analytics**: Driver summaries and trend analysis
+- ☁️ **Cloud-Native Architecture**: Scalable Kubernetes deployment
+- 🌌 **Immersive UI**: Celestial-themed dashboard with real-time updates
+
+---
+
+## 🧠 Core Concept
+
+- **Driver agents:** Learn per-driver patterns and detect anomalies.
+- **Speech correlation:** Align driving anomalies with radio phrases.
+- **ElevenLabs:** Converts open radio into timestamped transcripts.
+- **Gemini API:** Generates live driver summaries every few laps.
+- **React + Tailwind UI:** Visualizes real-time data with a celestial theme.
+
+---
+
+## 🏗️ System Architecture
+
 ```mermaid
 flowchart LR
-  A[Telemetry Replay (FastF1 JSON)] --> B[Feature Extractor (Py)]
-  B --> C[Intention Model (TCN • ONNXRuntime)]
-  B --> D[Micro-Scenario Simulator (HPC-lite)]
-  C --> E[Fusion Strategist]
-  D --> E
-  E --> F[VoiceComm (ElevenLabs • streaming)]
-  E --> G[React Celestial UI (Three.js + WS)]
-  E --> H[RAG Store (FAISS + SQLite)]
-  H --> I[Gemini API (Strategy Q&A)]
+  subgraph Track
+    T[Telemetry Data] -->|Kafka Topic: telemetry| K[(MSK/Kafka)]
+    R[Team Radio Audio] -->|ElevenLabs STT| TXT[Transcripts]
+    TXT -->|Kafka Topic: radio| K
+  end
+
+  K --> SPARK[Apache Spark Streaming]
+  SPARK -->|Anomaly & Phrase Stats| S3[(S3 or DigitalOcean Spaces)]
+  SPARK --> API[FastAPI Gateway]
+  API --> UI[React + Tailwind UI]
+  SPARK --> SUM[Gemini Summaries]
 ```
-
-### AgentBricks Orchestration Graph
-```mermaid
-flowchart TB
-  subgraph Bus[AgentBricks Event Bus]
-  end
-
-  subgraph Ingest
-    TR[TelemetryReaderAgent] -->|tick_state| Bus
-    CR[CommsReaderAgent] -->|radio_text| Bus
-  end
-
-  subgraph Per-Rival Loop
-    FW[RivalWatcherAgent[j]] -->|intent_logits| Bus
-    MS[MicroScenarioSimAgent[j]] -->|scenario_scores| Bus
-    AD[AnomalyAgent[j]] -->|anomaly_flags| Bus
-  end
-
-  CR --> NLP[CommsNLPAgent] -->|comms_logits| Bus
-  Bus --> FUS[FusionStrategistAgent] -->|alert| Bus
-  Bus --> RAG[RAGIndexerAgent]        %% logs alerts + context
-  FUS --> VC[VoiceCommAgent (ElevenLabs)]
-  FUS --> UI[UIBridgeAgent (WebSocket)]
-  QRY[RAGQueryAgent] -->|LLM prompt| GEM[Gemini API] -->|answer| UI
-```
-
-**Key ideas:**
-- **One RivalWatcherAgent per opponent** runs at 10–20 Hz.  
-- Agents communicate via an **event bus** (in-process dispatcher or Redis pub/sub).  
-- **FusionStrategistAgent** subscribes to `{intent, scenario, anomaly, comms}` and publishes **alerts**.  
-- **RAGIndexerAgent** persists alerts + windows to **FAISS/SQLite**.  
-- **VoiceCommAgent** streams TTS; **UIBridgeAgent** pushes WebSocket frames to the React app.  
-- **RAGQueryAgent** handles chat questions, retrieving chunks and calling **Gemini**.
 
 ---
 
-## 🧩 Agent Specs (concise)
+## ☁️ Cloud Stack
 
-### `TelemetryReaderAgent`
-- Reads cached telemetry; publishes `tick_state` at 10–20 Hz.
-
-### `RivalWatcherAgent[j]`
-- Subscribes: `tick_state` filtered by `rival_id`  
-- Computes windowed features → runs **TCN ONNXRuntime** → publishes `intent_logits` and `p_attack_in_Δt`.
-
-### `MicroScenarioSimAgent[j]`
-- Subscribes: `tick_state`  
-- Simulates 5–10 ghost futures for next 5–10 s (ERS dump / save / brake early / deep send).  
-- Publishes `scenario_scores` (risk estimates).
-
-### `AnomalyAgent[j]`
-- Subscribes: `tick_state`  
-- CUSUM on ERS discharge + lateral line deviation; optional tiny AE.  
-- Publishes `anomaly_flags` with scores.
-
-### `CommsReaderAgent` → `CommsNLPAgent`
-- Ingests radio transcripts (file/ASR).  
-- Keyword/phrase spotting → `comms_logits` with time decay.
-
-### `FusionStrategistAgent`
-- Subscribes: `intent_logits`, `scenario_scores`, `anomaly_flags`, `comms_logits`.  
-- Bayesian/threshold fusion → **`alert`** `{turn, risk, recommendation, why[]}`.
-
-### `RAGIndexerAgent`
-- Subscribes: `alert`, `tick_state` windows → builds text+numeric chunks → **embeds** → upserts to **FAISS** and row to **SQLite**.
-
-### `VoiceCommAgent`
-- Subscribes: `alert` → formats concise line (<3 s) → **ElevenLabs streaming TTS** → plays/streams; supports interrupt priorities.
-
-### `UIBridgeAgent`
-- Subscribes: `alert` → emits WebSocket message for the **React Celestial UI**.
-
-### `RAGQueryAgent`
-- HTTP endpoint `/rag/query`: retrieves top‑k chunks from FAISS → prompts **Gemini** → returns grounded answer (optionally TTS via VoiceCommAgent).
+| Layer | Service | Purpose |
+|:--|:--|:--|
+| Agents | DigitalOcean Kubernetes | Runs simulators, workers, and gateway |
+| Stream | Kafka (MSK or Bitnami Helm) | Telemetry & radio ingestion |
+| Processing | Apache Spark (on K8s or EMR) | Anomaly & correlation detection |
+| Storage | S3 or Spaces | Data lake + checkpoints |
+| Catalog | Glue + Athena (AWS) | Queryable data tables |
+| Summaries | Gemini API | AI driver summaries |
+| Transcription | ElevenLabs | Speech-to-text for radio |
+| Frontend | React + Tailwind | Galaxy-themed dashboard |
 
 ---
 
-## 🧮 Data Contracts
+## 💾 Data Models
 
-**`tick_state`**
+### Telemetry
 ```json
 {
-  "ts": 1734567890123,
-  "rival_id": "RBR_1",
-  "seg_id": 12,
-  "gap_s": 0.42,
-  "closing_rate": 0.18,
-  "drs_rival": true,
-  "ers_rival": 0.46,
-  "ers_delta": -0.07,
-  "v_rival": 286.4,
-  "v_ours": 283.9,
-  "throttle_rival": 0.92,
-  "brake_rival": 0.05,
-  "steer_deg_rival": -8.1,
-  "lateral_line_dev": 0.27,
-  "compound": "M",
-  "stint_laps": 9
+  "ts": "2025-10-18T18:30:01.235Z",
+  "driver_id": "DRIVER_A",
+  "lap": 7,
+  "distance_m": 3612.4,
+  "sector": 2,
+  "track_x": 0.83,
+  "speed_kph": 281.7,
+  "throttle_pct": 0.96,
+  "brake_pct": 0.02,
+  "gear": 7
 }
 ```
 
-**`alert`**
+### Radio Transcripts
 ```json
 {
-  "ts": 1734567890200,
-  "rival_id": "RBR_1",
-  "turn": 12,
-  "risk_attack_now": 0.74,
-  "recommendation": "Defend inside; ERS 30% in S3",
-  "why": ["ERS spike", "DRS active", "line deviation"],
-  "priority": "critical",
-  "ttl_ms": 4000,
-  "lap": 23
+  "ts": "2025-10-18T18:30:01.120Z",
+  "team": "TEAM_X",
+  "driver_id": "DRIVER_A",
+  "text": "Full speed ahead"
+}
+```
+
+### Anomaly Events
+```json
+{
+  "ts": "2025-10-18T18:30:01.400Z",
+  "driver_id": "DRIVER_A",
+  "feature": "speed_kph",
+  "score": 3.2,
+  "value": 281.7,
+  "baseline": 270.4
+}
+```
+
+### Phrase Correlation Stats
+```json
+{
+  "phrase": "full speed ahead",
+  "driver_id": "DRIVER_A",
+  "window_s": 5,
+  "count": 12,
+  "p(anomaly|phrase)": 0.67,
+  "top_features": ["speed_kph", "throttle_pct"]
 }
 ```
 
 ---
 
-## 🗂️ Repo Layout
+## 🧩 Data Flow
+
+1. **Simulator** generates telemetry + radio streams.
+2. **Kafka** handles telemetry/radio topics.
+3. **Spark Streaming** detects anomalies and correlations.
+4. **Gemini** produces live summaries.
+5. **Gateway** relays data to the **React UI** via WebSocket.
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Docker & Docker Compose
+- Node.js 18+ (for local development)
+- Python 3.11+ (for local development)
+- kubectl (for Kubernetes deployment)
+- Terraform (for infrastructure deployment)
+
+### Local Development
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/f1-race-engineer-ai.git
+   cd f1-race-engineer-ai
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp env.example .env
+   # Edit .env with your API keys
+   ```
+
+3. **Deploy locally**
+   ```bash
+   ./scripts/deploy.sh local
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - Kafka: localhost:9092
+
+### Production Deployment
+
+#### AWS Infrastructure
+```bash
+# Deploy AWS infrastructure
+./scripts/deploy.sh infrastructure aws
+
+# Deploy to Kubernetes
+./scripts/deploy.sh k8s
 ```
-astraguard/
-├── backend/
-│   ├── main.py                  # FastAPI + WS + AgentBricks bootstrap
-│   ├── bus.py                   # in-proc dispatcher / Redis option
-│   ├── agents/
-│   │   ├── telemetry_reader.py
-│   │   ├── rival_watcher.py
-│   │   ├── micro_scenario_sim.py
-│   │   ├── anomaly.py
-│   │   ├── comms_reader.py
-│   │   ├── comms_nlp.py
-│   │   ├── fusion_strategist.py
-│   │   ├── rag_indexer.py
-│   │   ├── voice_comm.py
-│   │   └── ui_bridge.py
-│   ├── models/model_intention.onnx
-│   ├── features.py
-│   ├── vector_store.py          # FAISS + SQLite
-│   ├── elevenlabs_client.py
-│   └── gemini_client.py
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── CelestialMap.jsx
-│   │   └── ThreatRibbon.jsx
-├── data/
-│   ├── telemetry_monza.json
-│   └── demo_transcripts.json
-└── README.md
+
+#### DigitalOcean Infrastructure
+```bash
+# Deploy DigitalOcean infrastructure
+./scripts/deploy.sh infrastructure digitalocean
+
+# Deploy to Kubernetes
+./scripts/deploy.sh k8s
 ```
 
 ---
 
-## ⚙️ Local Runtime (minimal)
+## 🧱 Terraform Setup (AWS + DigitalOcean)
 
-**Prereqs:** Python 3.10+, Node 20+, keys for ElevenLabs & Gemini
+### AWS Infrastructure
+- S3, Glue, Athena, MSK, EMR Serverless, Secrets Manager
+- Use `infra/terraform` to deploy
+```bash
+cd infra/terraform
+terraform init && terraform apply -auto-approve
+```
+
+### DigitalOcean Kubernetes (DOKS)
+- Creates VPC, Spaces, DOKS cluster, Kafka (Bitnami Helm), and Ingress
+```bash
+cd infra/doks-terraform
+terraform init && terraform apply -auto-approve
+```
+
+Fetch kubeconfig:
+```bash
+doctl kubernetes cluster kubeconfig save $(terraform output -raw doks_name)
+```
+
+Deploy app:
+```bash
+kubectl apply -f k8s/
+```
+
+---
+
+## ☸️ Kubernetes Components
+
+| Component | Purpose |
+|:--|:--|
+| simulator | Generates live telemetry |
+| gateway | WebSocket relay (FastAPI) |
+| transcriber | ElevenLabs STT worker |
+| summarizer | Gemini summarization worker |
+| ingress-nginx | Public access |
+| kafka | Internal cluster bus |
+
+---
+
+## 🎨 UI Theme
+
+- Navy blue `#0b1b3b` background with white galaxy glow.  
+- Real-time driver panels with speed/throttle/brake gauges.  
+- Live "codeword" probability indicators.  
+
+---
+
+## 📦 Development Commands
 
 ```bash
-# backend
-pip install -r requirements.txt  # fastapi, websockets, onnxruntime, faiss-cpu, numpy, pandas
-python backend/main.py
+# Install all dependencies
+npm run install-all
 
-# frontend
-npm --prefix frontend install
-npm --prefix frontend run dev
-```
+# Start development servers
+npm run dev
 
-`.env` (backend):
-```
-ELEVENLABS_API_KEY=...
-GEMINI_API_KEY=...
+# Run telemetry simulator
+npm run simulator
+
+# Build Docker images
+./scripts/deploy.sh build
+
+# Deploy to Kubernetes
+./scripts/deploy.sh k8s
+
+# Clean up resources
+./scripts/deploy.sh cleanup
 ```
 
 ---
 
-## 🖌️ Design (Best Design + Celestial)
-- Track: luminous ring; rivals: stars with orbit arcs.  
-- Threat: red supernova pulse on predicted move zone.  
-- Toasts: “Defend inside • T12 • 74%” with rationale chips.  
-- A11y: WCAG AA, captions for voice, keyboard focus styles.
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ELEVENLABS_API_KEY` | ElevenLabs API key for speech-to-text | Required |
+| `GEMINI_API_KEY` | Google Gemini API key for AI summaries | Required |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker addresses | localhost:9092 |
+| `TELEMETRY_TOPIC` | Kafka topic for telemetry data | telemetry |
+| `RADIO_TOPIC` | Kafka topic for radio transcripts | radio |
+| `REDIS_URL` | Redis connection URL | redis://localhost:6379 |
+
+### API Keys Setup
+
+1. **ElevenLabs**: Sign up at [elevenlabs.io](https://elevenlabs.io) and get your API key
+2. **Google Gemini**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 ---
 
-## 🧪 Demo
-1) Start replay → RivalWatcherAgent raises risk near T12.  
-2) FusionStrategistAgent emits **alert**; **VoiceCommAgent** speaks callout; UI shows supernova pulse.  
-3) Ask chat: “Why defend Lap 23?” → **RAGQueryAgent** retrieves chunks; **Gemini** answers with citations.  
+## 🧠 Future Enhancements
+
+- Integrate **LSTM autoencoders** for anomaly detection.  
+- Add **real radio feeds** from public APIs.  
+- Build **driver style profiling** over races.  
+- Integrate **real telemetry APIs** for Formula Student teams.
+- Add **machine learning model training** pipeline
+- Implement **real-time video analysis** for driver behavior
+- Add **predictive analytics** for race outcomes
 
 ---
 
-## 📌 NorthMark Pitch Angle
-“AstraGuard reduces HPC‑scale strategy space into **micro‑scenarios** and **speaks** the right call in **milliseconds** — the missing bridge between simulation and action.”
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
 ## 📜 License
-MIT © 2025 AstraGuard Team
+
+MIT License © 2025 Sahishnu "Sahi" Sagiraju  
+Use freely for educational & research purposes.
+
+---
+
+## 🙏 Acknowledgments
+
+- Formula 1 teams for inspiration
+- ElevenLabs for speech-to-text technology
+- Google for Gemini AI capabilities
+- The open-source community for amazing tools
+
+---
+
+## 📞 Support
+
+For questions, issues, or contributions, please:
+- Open an issue on GitHub
+- Contact: [your-email@example.com](mailto:your-email@example.com)
+- Follow on Twitter: [@yourusername](https://twitter.com/yourusername)

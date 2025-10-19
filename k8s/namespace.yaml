@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: f1-race-engineer
+  labels:
+    name: f1-race-engineer
+    app: f1-race-engineer-ai

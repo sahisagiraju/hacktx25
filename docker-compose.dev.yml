@@ -1,0 +1,35 @@
+version: '3.8'
+
+# Development overrides for docker-compose.yml
+# Run with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Backend Gateway - Development mode with hot reload
+  gateway:
+    volumes:
+      - ./backend:/app
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+
+  # Frontend - Development mode with hot reload
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+      - CHOKIDAR_USEPOLLING=true
+    command: npm start
+
+  # Telemetry Simulator - Development mode
+  simulator:
+    volumes:
+      - ./backend:/app
+    command: python sim/generate_stream.py --laps 5 --drivers 2 --format json --interval 1

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: f1-simulator
+  namespace: f1-race-engineer
+  labels:
+    app: f1-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: f1-simulator
+  template:
+    metadata:
+      labels:
+        app: f1-simulator
+    spec:
+      containers:
+      - name: simulator
+        image: f1-race-engineer/simulator:latest
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: f1-race-engineer-config
+              key: KAFKA_BOOTSTRAP_SERVERS
+        - name: TELEMETRY_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: f1-race-engineer-config
+              key: TELEMETRY_TOPIC
+        - name: RADIO_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: f1-race-engineer-config
+              key: RADIO_TOPIC
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

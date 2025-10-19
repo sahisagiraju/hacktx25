@@ -1,165 +1,292 @@
-import React, { useRef, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, Sphere } from '@react-three/drei';
-import { motion } from 'framer-motion';
-import * as THREE from 'three';
+import React, { useState, useEffect } from 'react';
+import { useWebSocket } from '../context/WebSocketContext';
+import { MapPin, Navigation, Star, Zap } from 'lucide-react';
 
-function TrackRing({ radius = 8, segments = 64 }) {
-  const meshRef = useRef();
+const CelestialMap = () => {
+  const { telemetryData, anomalies } = useWebSocket();
+  const [trackData, setTrackData] = useState([]);
+  const [selectedSector, setSelectedSector] = useState(1);
 
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.z = state.clock.elapsedTime * 0.1;
-    }
-  });
+  useEffect(() => {
+    // Generate track layout data
+    const generateTrackData = () => {
+      const sectors = 3;
+      const pointsPerSector = 20;
+      const trackPoints = [];
 
-  const points = [];
-  for (let i = 0; i <= segments; i++) {
-    const angle = (i / segments) * Math.PI * 2;
-    points.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0));
-  }
-
-  const curve = new THREE.CatmullRomCurve3(points);
-  const geometry = new THREE.TubeGeometry(curve, segments, 0.1, 8, false);
-
-  return (
-    <mesh ref={meshRef} geometry={geometry}>
-      <meshStandardMaterial
-        color="#00ffff"
-        emissive="#001122"
-        emissiveIntensity={0.3}
-        transparent
-        opacity={0.8}
-      />
-    </mesh>
-  );
-}
-
-function RivalStar({ position, rivalId, riskLevel = 0, isAlert = false }) {
-  const meshRef = useRef();
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      // Pulsing animation for threats
-      const pulseScale = 1 + Math.sin(state.clock.elapsedTime * 4) * riskLevel * 0.5;
-      meshRef.current.scale.setScalar(pulseScale);
-
-      if (isAlert) {
-        meshRef.current.material.emissiveIntensity = 0.5 + Math.sin(state.clock.elapsedTime * 8) * 0.3;
+      for (let sector = 1; sector <= sectors; sector++) {
+        for (let i = 0; i < pointsPerSector; i++) {
+          const progress = i / (pointsPerSector - 1);
+          const angle = (sector - 1) * 120 + progress * 120; // 120 degrees per sector
+          const radius = 100 + Math.sin(progress * Math.PI) * 30; // Oval shape
+          
+          trackPoints.push({
+            id: `sector-${sector}-${i}`,
+            sector,
+            x: Math.cos(angle * Math.PI / 180) * radius,
+            y: Math.sin(angle * Math.PI / 180) * radius,
+            progress,
+            angle
+          });
+        }
       }
+
+      setTrackData(trackPoints);
+    };
+
+    generateTrackData();
+  }, []);
+
+  const getDriverPosition = (driverId) => {
+    const data = telemetryData[driverId];
+    if (!data) return null;
+
+    const sector = data.sector || 1;
+    const trackPosition = data.track_x || 0;
+    
+    // Find the closest track point
+    const sectorPoints = trackData.filter(point => point.sector === sector);
+    if (sectorPoints.length === 0) return null;
+
+    const pointIndex = Math.floor(trackPosition * (sectorPoints.length - 1));
+    const point = sectorPoints[pointIndex];
+    
+    return {
+      x: point.x,
+      y: point.y,
+      driverId,
+      data
+    };
+  };
+
+  const getDriverColor = (driverId) => {
+    const anomaly = anomalies[driverId];
+    if (anomaly && anomaly.is_anomaly) {
+      return '#dc2626'; // Red for anomalies
     }
-  });
+    return '#3b82f6'; // Blue for normal
+  };
+
+  const getDriverSize = (driverId) => {
+    const data = telemetryData[driverId];
+    if (!data) return 8;
+    
+    // Size based on speed
+    const speed = data.speed_kph || 0;
+    return Math.max(6, Math.min(16, 8 + (speed / 50)));
+  };
+
+  const getSectorStats = (sector) => {
+    const drivers = Object.keys(telemetryData).map(driverId => {
+      const data = telemetryData[driverId];
+      return {
+        driverId,
+        sector: data?.sector || 1,
+        speed: data?.speed_kph || 0,
+        anomaly: anomalies[driverId]?.is_anomaly || false
+      };
+    }).filter(driver => driver.sector === sector);
+
+    return {
+      totalDrivers: drivers.length,
+      avgSpeed: drivers.length > 0 ? drivers.reduce((sum, d) => sum + d.speed, 0) / drivers.length : 0,
+      anomalies: drivers.filter(d => d.anomaly).length
+    };
+  };
 
   return (
-    <group position={position}>
-      <Sphere ref={meshRef} args={[0.3]}>
-        <meshStandardMaterial
-          color={isAlert ? "#ff4444" : "#ffffff"}
-          emissive={isAlert ? "#ff0000" : "#000033"}
-          emissiveIntensity={isAlert ? 0.8 : 0.2}
-        />
-      </Sphere>
-      <Text
-        position={[0, -0.8, 0]}
-        fontSize={0.3}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {rivalId}
-      </Text>
-      {isAlert && (
-        <pointLight position={[0, 0, 0]} color="#ff0000" intensity={2} distance={5} />
-      )}
-    </group>
-  );
-}
+    <div className="galaxy-card p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-white flex items-center">
+          <Navigation className="w-6 h-6 mr-2" />
+          Celestial Track Map
+        </h2>
+        <div className="flex space-x-2">
+          {[1, 2, 3].map(sector => (
+            <button
+              key={sector}
+              onClick={() => setSelectedSector(sector)}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                selectedSector === sector
+                  ? 'bg-f1-blue text-white'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+              }`}
+            >
+              Sector {sector}
+            </button>
+          ))}
+        </div>
+      </div>
 
-function CelestialMap3D({ alerts }) {
-  // Mock rival positions around the track
-  const rivals = [
-    { id: 'RBR_1', position: [6, 4, 0], riskLevel: 0.8 },
-    { id: 'FER_2', position: [-4, 6, 0], riskLevel: 0.3 },
-    { id: 'MCL_3', position: [-7, -3, 0], riskLevel: 0.5 },
-    { id: 'MER_4', position: [3, -7, 0], riskLevel: 0.2 },
-  ];
+      {/* Track Visualization */}
+      <div className="relative">
+        <div className="w-full h-96 bg-galaxy-blue/30 rounded-lg border border-galaxy-glow/30 overflow-hidden">
+          <svg
+            className="w-full h-full"
+            viewBox="-150 -150 300 300"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            {/* Track Background */}
+            <defs>
+              <radialGradient id="trackGradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="rgba(30, 58, 138, 0.1)" />
+                <stop offset="100%" stopColor="rgba(30, 58, 138, 0.3)" />
+              </radialGradient>
+            </defs>
+            
+            {/* Track Outline */}
+            {trackData.map((point, index) => {
+              const nextPoint = trackData[(index + 1) % trackData.length];
+              return (
+                <line
+                  key={`track-${index}`}
+                  x1={point.x}
+                  y1={point.y}
+                  x2={nextPoint.x}
+                  y2={nextPoint.y}
+                  stroke="rgba(30, 58, 138, 0.4)"
+                  strokeWidth="2"
+                />
+              );
+            })}
 
-  // Check for active alerts
-  const activeAlerts = alerts.filter(alert => alert.priority === 'critical');
+            {/* Sector Markers */}
+            {[1, 2, 3].map(sector => {
+              const sectorPoints = trackData.filter(p => p.sector === sector);
+              const startPoint = sectorPoints[0];
+              const endPoint = sectorPoints[sectorPoints.length - 1];
+              
+              return (
+                <g key={`sector-${sector}`}>
+                  <circle
+                    cx={startPoint.x}
+                    cy={startPoint.y}
+                    r="4"
+                    fill={selectedSector === sector ? '#3b82f6' : 'rgba(30, 58, 138, 0.6)'}
+                    className="animate-pulse"
+                  />
+                  <text
+                    x={startPoint.x}
+                    y={startPoint.y - 8}
+                    textAnchor="middle"
+                    className="text-xs fill-white"
+                  >
+                    S{sector}
+                  </text>
+                </g>
+              );
+            })}
 
-  return (
-    <>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[10, 10, 10]} intensity={0.8} />
-      <pointLight position={[-10, -10, -10]} intensity={0.4} color="#001122" />
+            {/* Driver Positions */}
+            {Object.keys(telemetryData).map(driverId => {
+              const position = getDriverPosition(driverId);
+              if (!position) return null;
 
-      <TrackRing />
+              return (
+                <g key={`driver-${driverId}`}>
+                  <circle
+                    cx={position.x}
+                    cy={position.y}
+                    r={getDriverSize(driverId)}
+                    fill={getDriverColor(driverId)}
+                    className="animate-pulse"
+                  />
+                  <text
+                    x={position.x}
+                    y={position.y + 4}
+                    textAnchor="middle"
+                    className="text-xs fill-white font-bold"
+                  >
+                    {driverId.split('_')[1]}
+                  </text>
+                </g>
+              );
+            })}
 
-      {rivals.map((rival) => {
-        const isAlert = activeAlerts.some(alert => alert.rival_id === rival.id);
-        return (
-          <RivalStar
-            key={rival.id}
-            position={rival.position}
-            rivalId={rival.id}
-            riskLevel={rival.riskLevel}
-            isAlert={isAlert}
-          />
-        );
-      })}
+            {/* Anomaly Indicators */}
+            {Object.keys(anomalies).map(driverId => {
+              const anomaly = anomalies[driverId];
+              if (!anomaly || !anomaly.is_anomaly) return null;
 
-      <OrbitControls
-        enablePan={true}
-        enableZoom={true}
-        enableRotate={true}
-        minDistance={5}
-        maxDistance={20}
-      />
-    </>
-  );
-}
+              const position = getDriverPosition(driverId);
+              if (!position) return null;
 
-function CelestialMap({ alerts }) {
-  return (
-    <div className="celestial-map-container">
-      <div className="panel-header">
-        <h3>Celestial Map</h3>
-        <div className="map-legend">
-          <div className="legend-item">
-            <div className="legend-dot active"></div>
-            <span>Live Rivals</span>
-          </div>
-          <div className="legend-item">
-            <div className="legend-dot threat"></div>
-            <span>Threat Zone</span>
+              return (
+                <g key={`anomaly-${driverId}`}>
+                  <circle
+                    cx={position.x}
+                    cy={position.y}
+                    r={getDriverSize(driverId) + 4}
+                    fill="none"
+                    stroke="#dc2626"
+                    strokeWidth="2"
+                    className="animate-ping"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Legend */}
+        <div className="absolute top-4 right-4 bg-galaxy-blue/80 backdrop-blur-sm rounded-lg p-3 border border-galaxy-glow/30">
+          <h4 className="text-sm font-semibold text-white mb-2">Legend</h4>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-f1-blue rounded-full"></div>
+              <span className="text-gray-300">Normal</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-f1-red rounded-full animate-pulse"></div>
+              <span className="text-gray-300">Anomaly</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-f1-yellow rounded-full"></div>
+              <span className="text-gray-300">Sector Markers</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="map-canvas">
-        <Canvas camera={{ position: [0, 0, 15], fov: 60 }}>
-          <CelestialMap3D alerts={alerts} />
-        </Canvas>
-      </div>
-
-      <div className="map-controls">
-        <motion.button
-          className="map-control-btn"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Auto-rotate
-        </motion.button>
-        <motion.button
-          className="map-control-btn"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Follow Leader
-        </motion.button>
+      {/* Sector Statistics */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map(sector => {
+          const stats = getSectorStats(sector);
+          return (
+            <div
+              key={`stats-${sector}`}
+              className={`p-4 rounded-lg border ${
+                selectedSector === sector
+                  ? 'bg-f1-blue/10 border-f1-blue/30'
+                  : 'bg-galaxy-blue/30 border-galaxy-glow/30'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-white">Sector {sector}</h3>
+                <MapPin className="w-4 h-4 text-f1-blue" />
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Drivers:</span>
+                  <span className="text-white">{stats.totalDrivers}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Avg Speed:</span>
+                  <span className="text-white">{stats.avgSpeed.toFixed(0)} km/h</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Anomalies:</span>
+                  <span className={stats.anomalies > 0 ? 'text-f1-red' : 'text-f1-green'}>
+                    {stats.anomalies}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
+};
 
 export default CelestialMap;
