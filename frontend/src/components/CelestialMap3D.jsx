@@ -204,8 +204,13 @@ function ProgressIndicator({ drivers, telemetryData }) {
       <div className="space-y-2">
         {drivers.slice(0, 5).map((driver, idx) => {
           const data = telemetryData[driver];
-          const progress = data ? (data.track_x * 100) : 0;
           const speed = data ? data.speed_kph : 0;
+
+          // Calculate total race progress: (completed laps + current lap progress) / 58
+          const currentLap = data ? data.lap || 1 : 1;
+          const trackProgress = data ? data.track_x || 0 : 0;
+          const totalProgress = ((currentLap - 1) + trackProgress) / 58;
+          const progressPercent = totalProgress * 100;
 
           return (
             <div key={driver} className="space-y-1">
@@ -217,14 +222,14 @@ function ProgressIndicator({ drivers, telemetryData }) {
                 <div
                   className="absolute h-full transition-all duration-300 rounded-full"
                   style={{
-                    width: `${Math.min(progress, 100)}%`,
+                    width: `${Math.min(progressPercent, 100)}%`,
                     background: `hsl(${217 + idx * 30}, 91%, 60%)`
                   }}
                 />
                 <div
                   className="absolute h-full w-4 rounded-full blur-sm"
                   style={{
-                    left: `${Math.min(progress, 100)}%`,
+                    left: `${Math.min(progressPercent, 100)}%`,
                     transform: 'translateX(-50%)',
                     background: `hsl(${217 + idx * 30}, 91%, 60%)`,
                     opacity: 0.6
@@ -292,12 +297,12 @@ function Scene({ trackData, telemetryData, anomalies }) {
 
   return (
     <>
-      <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 12, 12]} fov={60} />
+      <PerspectiveCamera ref={cameraRef} makeDefault position={[0, 10, 10]} fov={70} />
       <OrbitControls
         enableDamping
         dampingFactor={0.05}
-        minDistance={5}
-        maxDistance={25}
+        minDistance={4}
+        maxDistance={22}
         maxPolarAngle={Math.PI / 2.2}
       />
 
@@ -495,7 +500,7 @@ const CelestialMap3D = () => {
         )}
 
         {/* 3D Canvas */}
-        <div className="w-full h-[750px] bg-[#0a1628] rounded-lg overflow-hidden border border-border">
+        <div className="w-full h-[1800px] bg-[#0a1628] rounded-lg overflow-hidden border border-border">
           <Canvas
             key={cameraReset}
             shadows

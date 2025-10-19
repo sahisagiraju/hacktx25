@@ -256,12 +256,15 @@ def update_driver_position(driver_id, delta_time):
     # Calculate distance traveled (speed in km/h converted to m/s, then multiplied by time)
     distance_increment = (base_speed * 1000 / 3600) * delta_time  # meters
 
-    # Track is approximately 50000m long (significantly slowed down for better visualization)
-    track_length = 50000.0
+    # Track is approximately 30000m long (balanced for visible progression)
+    track_length = 30000.0
     state["distance_m"] += distance_increment
     state["speed_kph"] = base_speed
 
-    # Calculate track position (0.0 to 1.0)
+    # Calculate current lap (starting from lap 1)
+    state["lap"] = int(state["distance_m"] / track_length) + 1
+
+    # Calculate track position within current lap (0.0 to 1.0)
     state["track_position"] = (state["distance_m"] % track_length) / track_length
 
     # Update track_x to move in one direction (0.0 to 1.0)
@@ -274,11 +277,6 @@ def update_driver_position(driver_id, delta_time):
         state["sector"] = 2
     else:
         state["sector"] = 3
-
-    # Check for lap completion
-    if state["distance_m"] >= track_length:
-        state["lap"] += 1
-        # Don't reset distance, let it accumulate for continuous progression
 
     # Update other telemetry based on sector
     if state["sector"] == 1:  # Fast section

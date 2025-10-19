@@ -38,29 +38,31 @@ const RangerDashboard = ({ selectedDriver, onDriverSelect }) => {
     setRecentAnomalies(recent);
   }, [anomalies]);
 
-  // Sync current lap with driver telemetry data (use first active driver's lap)
+  // Sync current lap with driver telemetry data based on track_x progress
   useEffect(() => {
     if (activeDrivers.length > 0 && activeDrivers[0].data) {
-      const driverLap = activeDrivers[0].data.lap || 1;
+      const trackProgress = activeDrivers[0].data.track_x || 0; // 0.0 to 1.0 (progress within current lap)
+      const baseLap = activeDrivers[0].data.lap || 1;
+
+      // Calculate total progress: completed laps + current progress
+      // When lap=3 and track_x=0.5, we've completed 2 laps + 50% of lap 3 = 2.5 total
+      const totalProgress = (baseLap - 1) + trackProgress;
+
       // Cap at 58 laps with modulus
-      const cappedLap = driverLap > 58 ? ((driverLap - 1) % 58) + 1 : driverLap;
-      setCurrentLap(cappedLap);
+      const cappedProgress = totalProgress > 58 ? ((totalProgress - 1) % 58) + 1 : totalProgress;
+      setCurrentLap(cappedProgress);
     }
   }, [activeDrivers]);
 
-  // Fuel system with warning at 20% and auto-reset at 0
+  // Fuel system with warning at 20% - consume 90% over 58 laps (reach 10% at end)
   useEffect(() => {
     const fuelInterval = setInterval(() => {
       setFuelLevel((prevFuel) => {
-        const newFuel = Math.max(0, prevFuel - 1.5); // Decrease by 1.5% each interval
+        // Consume 90% fuel over 58 laps: 90/58 = ~1.55% per lap
+        // Update every second, so we need faster consumption for visible progress
+        const newFuel = Math.max(10, prevFuel - 0.025); // Decrease by 0.025% per second, stops at 10%
 
-        // Auto-reset fuel when it hits 0 (simulates pitstop)
-        if (newFuel <= 0) {
-          setShowFuelWarning(false);
-          return 100; // Reset to full tank
-        }
-
-        if (newFuel <= 20 && newFuel > 0) {
+        if (newFuel <= 20 && newFuel > 10) {
           setShowFuelWarning(true);
         } else {
           setShowFuelWarning(false);
@@ -302,13 +304,13 @@ const RangerDashboard = ({ selectedDriver, onDriverSelect }) => {
             <div className="text-center">
               <div className="text-3xl font-bold text-white mb-2 ranger-mono">CURRENT LAP</div>
               <motion.div
-                key={currentLap}
+                key={Math.ceil(currentLap)}
                 initial={{ scale: 1.2, color: '#3b82f6' }}
                 animate={{ scale: 1, color: '#ffffff' }}
                 transition={{ duration: 0.5 }}
                 className="text-4xl font-bold text-f1-blue ranger-mono"
               >
-                {currentLap}/58
+                {Math.ceil(currentLap)}/58
               </motion.div>
             </div>
 
