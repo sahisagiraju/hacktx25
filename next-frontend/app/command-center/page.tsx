@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, TrendingUp, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  TrendingUp,
+  Zap,
+  Mic,
+  Volume2,
+  Radio,
+} from "lucide-react";
 
 interface Threat {
   id: string | number;
@@ -22,8 +29,14 @@ export default function CommandCenterPage() {
     // Example: { id: 1, rival_id: "RIVAL-001", turn: 5, risk_attack_now: 0.8, recommendation: "Deploy countermeasures", why: ["Suspicious activity"], ts: Date.now() }
   ]);
 
-  const activeThreats = threats.length;
-  const avgRisk =
+  // Voice indicator state
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [voiceLevel, setVoiceLevel] = useState<number>(0);
+  const [lastCommand, setLastCommand] = useState<string>("");
+
+  const activeThreats: number = threats.length;
+  const avgRisk: number =
     threats.length > 0
       ? Math.round(
           (threats.reduce((acc, t) => acc + t.risk_attack_now, 0) /
@@ -31,6 +44,44 @@ export default function CommandCenterPage() {
             100
         )
       : 0;
+
+  // Simulate voice activity
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isListening) {
+        setVoiceLevel(Math.random() * 100);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isListening]);
+
+  // Simulate voice commands
+  useEffect(() => {
+    if (isSpeaking) {
+      const commands: string[] = [
+        "Defend inside at Turn 12",
+        "ERS deployment in Sector 3",
+        "Watch RBR_1 closing rate",
+        "Tire temperatures optimal",
+      ];
+
+      const timer = setTimeout(() => {
+        setLastCommand(commands[Math.floor(Math.random() * commands.length)]);
+        setIsSpeaking(false);
+      }, 2000 + Math.random() * 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isSpeaking]);
+
+  const handleVoiceToggle = (): void => {
+    setIsListening(!isListening);
+    if (!isListening) {
+      setVoiceLevel(0);
+      setLastCommand("");
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -231,45 +282,95 @@ export default function CommandCenterPage() {
           </CardContent>
         </Card>
 
-        {/* Encrypted Chat Activity */}
+        {/* Voice Indicator */}
         <Card className="lg:col-span-4 bg-neutral-900 border-neutral-700">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-neutral-300 tracking-wider">
-              ENCRYPTED CHAT ACTIVITY
+              VOICE COMMAND
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            {/* Wireframe Sphere */}
-            <div className="relative w-32 h-32 mb-4">
-              <div className="absolute inset-0 border-2 border-white rounded-full opacity-60 animate-pulse"></div>
-              <div className="absolute inset-2 border border-white rounded-full opacity-40"></div>
-              <div className="absolute inset-4 border border-white rounded-full opacity-20"></div>
-              {/* Grid lines */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-full h-px bg-white opacity-30"></div>
+          <CardContent className="flex flex-col items-center space-y-4">
+            {/* Voice Toggle Button */}
+            <button
+              onClick={handleVoiceToggle}
+              className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
+                isListening
+                  ? "bg-cyan-500/20 border-2 border-cyan-400"
+                  : "bg-neutral-800 border-2 border-neutral-700"
+              }`}
+            >
+              <Mic
+                size={32}
+                className={isListening ? "text-cyan-400" : "text-neutral-500"}
+              />
+              {isListening && (
+                <div className="absolute inset-0 border-2 border-cyan-400 rounded-full animate-ping opacity-75"></div>
+              )}
+            </button>
+
+            {/* Voice Status */}
+            <div className="text-center">
+              <div className="text-xs text-neutral-400 mb-2">
+                {isListening ? "Listening..." : "Voice Off"}
               </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-px h-full bg-white opacity-30"></div>
-              </div>
+
+              {/* Voice Level Bars */}
+              {isListening && (
+                <div className="flex items-end justify-center gap-1 h-12">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-2 rounded-full transition-all duration-100"
+                      style={{
+                        height: `${Math.max(
+                          10,
+                          voiceLevel > (i + 1) * 20 ? voiceLevel : 10
+                        )}%`,
+                        backgroundColor:
+                          voiceLevel > (i + 1) * 20
+                            ? voiceLevel > 66
+                              ? "#ff4444"
+                              : voiceLevel > 33
+                              ? "#ffaa00"
+                              : "#44ff44"
+                            : "#333",
+                      }}
+                    ></div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="text-xs text-neutral-500 space-y-1 w-full font-mono">
-              <div className="flex justify-between">
-                <span># 2025-06-17 14:23 UTC</span>
+            {/* Speaking Indicator */}
+            {isSpeaking && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-cyan-500/20 rounded-full border border-cyan-400">
+                <Volume2 size={16} className="text-cyan-400 animate-pulse" />
+                <span className="text-xs text-cyan-400">Speaking</span>
               </div>
-              <div className="text-white">
-                {"> [AGT:gh0stfire] ::: INIT >> ^^^ loading secure channel"}
+            )}
+
+            {/* Last Command */}
+            {lastCommand && (
+              <div className="w-full p-3 bg-neutral-800 rounded border border-neutral-700">
+                <div className="flex items-start gap-2 mb-1">
+                  <Radio size={14} className="text-cyan-400 mt-0.5" />
+                  <span className="text-xs text-neutral-400">
+                    Last Command:
+                  </span>
+                </div>
+                <div className="text-xs text-white font-mono pl-5">
+                  "{lastCommand}"
+                </div>
               </div>
-              <div className="text-cyan-400">
-                {"> CH#2 | 1231.9082464.500...xR3"}
-              </div>
-              <div className="text-white">{"> KEY LOCKED"}</div>
-              <div className="text-neutral-400">
-                {
-                  '> MSG >> "...mission override initiated... awaiting delta node clearance"'
-                }
-              </div>
-            </div>
+            )}
+
+            {/* Voice Settings */}
+            <button
+              className="text-lg hover:scale-110 transition-transform"
+              title="Voice Settings"
+            >
+              ⚙️
+            </button>
           </CardContent>
         </Card>
 
