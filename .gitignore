@@ -20,3 +20,5 @@ override.tf.json
 terraform.rc
 .env
 .env
+
+frontend/node_modules/

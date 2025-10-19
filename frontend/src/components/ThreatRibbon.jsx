@@ -54,10 +54,10 @@ const ThreatRibbon = () => {
 
   const getThreatBg = (severity) => {
     switch (severity) {
-      case 'high': return 'bg-f1-red/10 border-f1-red/30';
-      case 'medium': return 'bg-f1-yellow/10 border-f1-yellow/30';
-      case 'low': return 'bg-f1-green/10 border-f1-green/30';
-      default: return 'bg-gray-700/10 border-gray-700/30';
+      case 'high': return 'bg-black/90 border-f1-red/30';
+      case 'medium': return 'bg-black/90 border-f1-yellow/30';
+      case 'low': return 'bg-black/90 border-f1-green/30';
+      default: return 'bg-black/90 border-gray-700/30';
     }
   };
 
@@ -81,15 +81,15 @@ const ThreatRibbon = () => {
 
   const getThreatLevelBg = () => {
     switch (threatLevel) {
-      case 'high': return 'bg-f1-red/10 border-f1-red/30';
-      case 'medium': return 'bg-f1-yellow/10 border-f1-yellow/30';
-      case 'low': return 'bg-f1-green/10 border-f1-green/30';
-      default: return 'bg-gray-700/10 border-gray-700/30';
+      case 'high': return 'bg-black/90 border-f1-red/30';
+      case 'medium': return 'bg-black/90 border-f1-yellow/30';
+      case 'low': return 'bg-black/90 border-f1-green/30';
+      default: return 'bg-black/90 border-gray-700/30';
     }
   };
 
   return (
-    <div className="galaxy-card p-4 w-80">
+    <div className="galaxy-card p-4 w-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-white flex items-center">
           <Shield className="w-5 h-5 mr-2" />
@@ -108,7 +108,7 @@ const ThreatRibbon = () => {
             {threatLevel.toUpperCase()}
           </span>
         </div>
-        <div className="w-full bg-gray-700 rounded-full h-2">
+        <div className="w-full bg-black/90 rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all duration-300 ${
               threatLevel === 'high' ? 'bg-f1-red' :
@@ -154,9 +154,9 @@ const ThreatRibbon = () => {
                       Score: {threat.score.toFixed(1)}
                     </span>
                     <span className={`text-xs px-2 py-1 rounded ${
-                      threat.severity === 'high' ? 'bg-f1-red/20 text-f1-red' :
-                      threat.severity === 'medium' ? 'bg-f1-yellow/20 text-f1-yellow' :
-                      'bg-f1-green/20 text-f1-green'
+                      threat.severity === 'high' ? 'bg-black/80 border border-f1-red/30 text-f1-red' :
+                      threat.severity === 'medium' ? 'bg-black/80 border border-f1-yellow/30 text-f1-yellow' :
+                      'bg-black/80 border border-f1-green/30 text-f1-green'
                     }`}>
                       {threat.severity.toUpperCase()}
                     </span>

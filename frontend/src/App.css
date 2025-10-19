@@ -32,18 +32,21 @@
   }
 }
 
-/* Custom galaxy-themed components */
+/* R.A.N.G.E.R Dashboard Style Components */
 .galaxy-card {
-  background: rgba(11, 27, 59, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(30, 58, 138, 0.3);
+  background: #000000;
+  border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .galaxy-card:hover {
-  border-color: rgba(30, 58, 138, 0.6);
-  box-shadow: 0 8px 32px rgba(30, 58, 138, 0.2);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  transform: translateY(-2px);
 }
 
 .telemetry-gauge {
@@ -64,7 +67,7 @@
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    rgba(30, 58, 138, 0.3) 90deg,
+    rgba(24, 47, 109, 0.3) 90deg,
     rgba(59, 130, 246, 0.6) 180deg,
     rgba(139, 92, 246, 0.8) 270deg,
     transparent 360deg
@@ -78,32 +81,35 @@
 }
 
 .driver-card {
-  transition: all 0.3s ease;
+  transition: all 0.2s ease-in-out;
   cursor: pointer;
 }
 
 .driver-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(30, 58, 138, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px hsl(var(--primary) / 0.3);
+  border-color: hsl(var(--primary) / 0.4);
 }
 
 .driver-card.selected {
-  border-color: #3b82f6;
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.2);
+  background: hsl(var(--primary) / 0.05);
 }
 
 .anomaly-alert {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  border-color: #dc2626;
-  box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+  border-color: hsl(var(--destructive));
+  box-shadow: 0 0 20px hsl(var(--destructive) / 0.5);
+  background: hsl(var(--destructive) / 0.05);
 }
 
 .radio-transcript {
-  background: rgba(11, 27, 59, 0.6);
-  border-left: 4px solid #3b82f6;
+  background: hsl(var(--muted) / 0.5);
+  border-left: 4px solid hsl(var(--primary));
   padding: 12px;
   margin: 8px 0;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
   animation: slideIn 0.3s ease-out;
 }
 
@@ -128,13 +134,160 @@
   100% { background-position: 200% 0; }
 }
 
+/* R.A.N.G.E.R Dashboard Specific Styles */
+.ranger-sidebar {
+  background: #000000;
+  border-right: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.ranger-header {
+  background: #000000;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.ranger-gauge {
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(59, 130, 246, 0.3) 90deg, rgba(59, 130, 246, 0.8) 180deg, transparent 270deg);
+  border-radius: 50%;
+  position: relative;
+  animation: gauge-pulse 2s ease-in-out infinite;
+}
+
+.ranger-gauge::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: rgba(11, 27, 59, 0.9);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.ranger-progress-bar {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.8));
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ranger-progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+.ranger-status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.ranger-text-glow {
+  text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+}
+
+.ranger-border-glow {
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5), inset 0 0 10px rgba(59, 130, 246, 0.2);
+}
+
+/* Animations */
+@keyframes gauge-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+@keyframes data-flow {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+.ranger-data-flow {
+  animation: data-flow 3s linear infinite;
+}
+
+/* Monospace font for technical feel */
+.ranger-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Moving Stars Animation */
+.stars-layer-1, .stars-layer-2, .stars-layer-3 {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+}
+
+.stars-layer-1 {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.8) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+  background-size: 250px 250px, 350px 350px;
+  background-position: 0 0, 40px 60px;
+  animation: starsMove1 120s linear infinite;
+}
+
+.stars-layer-2 {
+  background-image:
+    radial-gradient(circle, rgba(139, 92, 246, 0.6) 1.5px, transparent 1.5px),
+    radial-gradient(circle, rgba(139, 92, 246, 0.4) 1px, transparent 1px);
+  background-size: 300px 300px, 400px 400px;
+  background-position: 20px 40px, 100px 120px;
+  animation: starsMove2 90s linear infinite;
+}
+
+.stars-layer-3 {
+  background-image:
+    radial-gradient(circle, rgba(59, 130, 246, 0.5) 2px, transparent 2px),
+    radial-gradient(circle, rgba(59, 130, 246, 0.3) 1px, transparent 1px);
+  background-size: 350px 350px, 450px 450px;
+  background-position: 60px 80px, 150px 180px;
+  animation: starsMove3 60s linear infinite;
+}
+
+@keyframes starsMove1 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-50%, -50%); }
+}
+
+@keyframes starsMove2 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-45%, -48%); }
+}
+
+@keyframes starsMove3 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-40%, -45%); }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .galaxy-card {
     margin: 8px;
     padding: 16px;
   }
-  
+
   .telemetry-gauge {
     width: 120px;
     height: 120px;

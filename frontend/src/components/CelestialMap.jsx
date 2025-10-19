@@ -1,98 +1,100 @@
 import React, { useState, useEffect } from 'react';
 import { useWebSocket } from '../context/WebSocketContext';
-import { MapPin, Navigation, Star, Zap } from 'lucide-react';
+import { MapPin, Navigation } from 'lucide-react';
 
 const CelestialMap = () => {
-  const { telemetryData, anomalies } = useWebSocket();
+  // Always default to safe containers in case context hasn’t populated yet
+  const { telemetryData: telemetryRaw, anomalies: anomaliesRaw } = useWebSocket();
+  const telemetryData = telemetryRaw ?? {};
+  const anomalies = anomaliesRaw ?? {};
+
   const [trackData, setTrackData] = useState([]);
   const [selectedSector, setSelectedSector] = useState(1);
 
   useEffect(() => {
-    // Generate track layout data
-    const generateTrackData = () => {
-      const sectors = 3;
-      const pointsPerSector = 20;
-      const trackPoints = [];
+    // Generate track layout data once
+    const sectors = 3;
+    const pointsPerSector = 20;
+    const trackPoints = [];
 
-      for (let sector = 1; sector <= sectors; sector++) {
-        for (let i = 0; i < pointsPerSector; i++) {
-          const progress = i / (pointsPerSector - 1);
-          const angle = (sector - 1) * 120 + progress * 120; // 120 degrees per sector
-          const radius = 100 + Math.sin(progress * Math.PI) * 30; // Oval shape
-          
-          trackPoints.push({
-            id: `sector-${sector}-${i}`,
-            sector,
-            x: Math.cos(angle * Math.PI / 180) * radius,
-            y: Math.sin(angle * Math.PI / 180) * radius,
-            progress,
-            angle
-          });
-        }
+    for (let sector = 1; sector <= sectors; sector++) {
+      for (let i = 0; i < pointsPerSector; i++) {
+        const progress = i / (pointsPerSector - 1);
+        const angle = (sector - 1) * 120 + progress * 120; // 120 deg/sector
+        const radius = 100 + Math.sin(progress * Math.PI) * 30; // oval-ish
+
+        trackPoints.push({
+          id: `sector-${sector}-${i}`,
+          sector,
+          x: Math.cos((angle * Math.PI) / 180) * radius,
+          y: Math.sin((angle * Math.PI) / 180) * radius,
+          progress,
+          angle,
+        });
       }
+    }
 
-      setTrackData(trackPoints);
-    };
-
-    generateTrackData();
+    setTrackData(trackPoints);
   }, []);
 
   const getDriverPosition = (driverId) => {
-    const data = telemetryData[driverId];
+    const data = telemetryData?.[driverId];
     if (!data) return null;
 
     const sector = data.sector || 1;
-    const trackPosition = data.track_x || 0;
-    
-    // Find the closest track point
-    const sectorPoints = trackData.filter(point => point.sector === sector);
+    const trackPosition = Math.max(0, Math.min(1, data.track_x ?? 0));
+
+    const sectorPoints = trackData.filter((p) => p.sector === sector);
     if (sectorPoints.length === 0) return null;
 
     const pointIndex = Math.floor(trackPosition * (sectorPoints.length - 1));
     const point = sectorPoints[pointIndex];
-    
-    return {
-      x: point.x,
-      y: point.y,
-      driverId,
-      data
-    };
+    if (!point) return null;
+
+    return { x: point.x, y: point.y, driverId, data };
   };
 
-  const getDriverColor = (driverId) => {
-    const anomaly = anomalies[driverId];
-    if (anomaly && anomaly.is_anomaly) {
-      return '#dc2626'; // Red for anomalies
-    }
-    return '#3b82f6'; // Blue for normal
-  };
+  const getDriverColor = (driverId) =>
+    anomalies?.[driverId]?.is_anomaly ? '#dc2626' : '#3b82f6';
 
   const getDriverSize = (driverId) => {
-    const data = telemetryData[driverId];
-    if (!data) return 8;
-    
-    // Size based on speed
-    const speed = data.speed_kph || 0;
-    return Math.max(6, Math.min(16, 8 + (speed / 50)));
+    const speed = telemetryData?.[driverId]?.speed_kph ?? 0;
+    return Math.max(6, Math.min(16, 8 + speed / 50)); // 6–16px
   };
 
   const getSectorStats = (sector) => {
-    const drivers = Object.keys(telemetryData).map(driverId => {
-      const data = telemetryData[driverId];
-      return {
-        driverId,
-        sector: data?.sector || 1,
-        speed: data?.speed_kph || 0,
-        anomaly: anomalies[driverId]?.is_anomaly || false
-      };
-    }).filter(driver => driver.sector === sector);
+    const drivers = Object.keys(telemetryData)
+      .map((driverId) => {
+        const d = telemetryData[driverId] ?? {};
+        return {
+          driverId,
+          sector: d.sector ?? 1,
+          speed: d.speed_kph ?? 0,
+          anomaly: !!(anomalies?.[driverId]?.is_anomaly),
+        };
+      })
+      .filter((d) => d.sector === sector);
+
+    const avgSpeed =
+      drivers.length > 0
+        ? drivers.reduce((sum, d) => sum + d.speed, 0) / drivers.length
+        : 0;
 
     return {
       totalDrivers: drivers.length,
-      avgSpeed: drivers.length > 0 ? drivers.reduce((sum, d) => sum + d.speed, 0) / drivers.length : 0,
-      anomalies: drivers.filter(d => d.anomaly).length
+      avgSpeed,
+      anomalies: drivers.filter((d) => d.anomaly).length,
     };
   };
+
+  // Early exit while track points are being generated
+  if (trackData.length === 0) {
+    return (
+      <div className="galaxy-card p-6 text-gray-300">
+        Loading track data…
+      </div>
+    );
+  }
 
   return (
     <div className="galaxy-card p-6">
@@ -102,7 +104,7 @@ const CelestialMap = () => {
           Celestial Track Map
         </h2>
         <div className="flex space-x-2">
-          {[1, 2, 3].map(sector => (
+          {[1, 2, 3].map((sector) => (
             <button
               key={sector}
               onClick={() => setSelectedSector(sector)}
@@ -126,36 +128,31 @@ const CelestialMap = () => {
             viewBox="-150 -150 300 300"
             preserveAspectRatio="xMidYMid meet"
           >
-            {/* Track Background */}
-            <defs>
-              <radialGradient id="trackGradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(30, 58, 138, 0.1)" />
-                <stop offset="100%" stopColor="rgba(30, 58, 138, 0.3)" />
-              </radialGradient>
-            </defs>
-            
-            {/* Track Outline */}
-            {trackData.map((point, index) => {
-              const nextPoint = trackData[(index + 1) % trackData.length];
-              return (
-                <line
-                  key={`track-${index}`}
-                  x1={point.x}
-                  y1={point.y}
-                  x2={nextPoint.x}
-                  y2={nextPoint.y}
-                  stroke="rgba(30, 58, 138, 0.4)"
-                  strokeWidth="2"
-                />
-              );
-            })}
+            {/* Track Outline — guarded */}
+            {trackData.length > 1 &&
+              trackData.map((point, index) => {
+                const nextPoint = trackData[(index + 1) % trackData.length];
+                if (!point || !nextPoint) return null;
+                return (
+                  <line
+                    key={`track-${index}`}
+                    x1={point.x}
+                    y1={point.y}
+                    x2={nextPoint.x}
+                    y2={nextPoint.y}
+                    stroke="rgba(30, 58, 138, 0.4)"
+                    strokeWidth="2"
+                  />
+                );
+              })}
 
-            {/* Sector Markers */}
-            {[1, 2, 3].map(sector => {
-              const sectorPoints = trackData.filter(p => p.sector === sector);
+            {/* Sector Markers — guarded */}
+            {trackData.length > 0 && [1, 2, 3].map((sector) => {
+              const sectorPoints = trackData.filter((p) => p.sector === sector);
+              if (sectorPoints.length === 0) return null;
               const startPoint = sectorPoints[0];
-              const endPoint = sectorPoints[sectorPoints.length - 1];
-              
+              if (!startPoint || typeof startPoint.x === 'undefined' || typeof startPoint.y === 'undefined') return null;
+
               return (
                 <g key={`sector-${sector}`}>
                   <circle
@@ -177,8 +174,8 @@ const CelestialMap = () => {
               );
             })}
 
-            {/* Driver Positions */}
-            {Object.keys(telemetryData).map(driverId => {
+            {/* Driver Positions — guarded */}
+            {Object.keys(telemetryData).map((driverId) => {
               const position = getDriverPosition(driverId);
               if (!position) return null;
 
@@ -197,17 +194,16 @@ const CelestialMap = () => {
                     textAnchor="middle"
                     className="text-xs fill-white font-bold"
                   >
-                    {driverId.split('_')[1]}
+                    {driverId.split('_')[1] ?? driverId}
                   </text>
                 </g>
               );
             })}
 
-            {/* Anomaly Indicators */}
-            {Object.keys(anomalies).map(driverId => {
-              const anomaly = anomalies[driverId];
-              if (!anomaly || !anomaly.is_anomaly) return null;
-
+            {/* Anomaly Indicators — guarded */}
+            {Object.keys(anomalies).map((driverId) => {
+              const anomaly = anomalies?.[driverId];
+              if (!anomaly?.is_anomaly) return null;
               const position = getDriverPosition(driverId);
               if (!position) return null;
 
@@ -233,15 +229,15 @@ const CelestialMap = () => {
           <h4 className="text-sm font-semibold text-white mb-2">Legend</h4>
           <div className="space-y-1 text-xs">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-f1-blue rounded-full"></div>
+              <div className="w-3 h-3 bg-f1-blue rounded-full" />
               <span className="text-gray-300">Normal</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-f1-red rounded-full animate-pulse"></div>
+              <div className="w-3 h-3 bg-f1-red rounded-full animate-pulse" />
               <span className="text-gray-300">Anomaly</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-f1-yellow rounded-full"></div>
+              <div className="w-3 h-3 bg-f1-yellow rounded-full" />
               <span className="text-gray-300">Sector Markers</span>
             </div>
           </div>
@@ -250,7 +246,7 @@ const CelestialMap = () => {
 
       {/* Sector Statistics */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map(sector => {
+        {[1, 2, 3].map((sector) => {
           const stats = getSectorStats(sector);
           return (
             <div

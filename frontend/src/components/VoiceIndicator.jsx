@@ -46,7 +46,7 @@ const VoiceIndicator = () => {
   };
 
   return (
-    <div className="galaxy-card p-4 w-80">
+    <div className="galaxy-card p-4 w-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-white flex items-center">
           <Radio className="w-5 h-5 mr-2" />
@@ -68,7 +68,7 @@ const VoiceIndicator = () => {
             <div
               key={i}
               className={`w-2 rounded-sm transition-all duration-100 ${
-                i < (audioLevel / 5) ? getAudioLevelColor(audioLevel) : 'bg-gray-700'
+                i < (audioLevel / 5) ? getAudioLevelColor(audioLevel) : 'bg-black/80 border border-purple-500/10'
               }`}
               style={{ height: getAudioLevelHeight(audioLevel) }}
             ></div>
@@ -118,7 +118,7 @@ const VoiceIndicator = () => {
         <h4 className="text-sm font-medium text-white mb-2">Recent Activity</h4>
         <div className="space-y-2 max-h-32 overflow-y-auto">
           {radioData.slice(0, 3).map((message, index) => (
-            <div key={index} className="text-xs text-gray-300 bg-galaxy-blue/30 rounded p-2">
+            <div key={index} className="text-xs text-gray-300 bg-black/95 border border-purple-500/20 rounded p-2">
               <div className="flex items-center justify-between">
                 <span className="font-medium">{message.team}</span>
                 <span className="text-gray-400">
